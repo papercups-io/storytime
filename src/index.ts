@@ -1,3 +1,3 @@
-import info from './utils/info';
+import Storytime from './storytime';
 
-export {info};
+export {Storytime};

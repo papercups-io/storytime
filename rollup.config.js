@@ -1,4 +1,5 @@
 import typescript from '@rollup/plugin-typescript';
+import commonjs from '@rollup/plugin-commonjs';
 import resolve from '@rollup/plugin-node-resolve';
 import pkg from './package.json';
 
@@ -22,6 +23,7 @@ export default {
       main: true,
       jsnext: true,
     }),
+    commonjs(),
     typescript(),
   ],
 };

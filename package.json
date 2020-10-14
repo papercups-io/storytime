@@ -31,8 +31,11 @@
   "devDependencies": {
     "@babel/core": "^7.0.0",
     "@babel/preset-env": "^7.0.0",
+    "@rollup/plugin-commonjs": "^15.1.0",
     "@rollup/plugin-node-resolve": "^8.1.0",
     "@rollup/plugin-typescript": "^6.0.0",
+    "@types/phoenix": "^1.5.0",
+    "@types/superagent": "^4.1.10",
     "@typescript-eslint/eslint-plugin": "^3.5.0",
     "@typescript-eslint/parser": "^3.5.0",
     "babel-eslint": "^10.1.0",
@@ -67,5 +70,9 @@
     "url": "https://github.com/papercups-io/storytime/issues"
   },
   "homepage": "https://github.com/papercups-io/storytime#readme",
-  "dependencies": {}
+  "dependencies": {
+    "phoenix": "^1.5.6",
+    "rrweb": "^0.9.7",
+    "superagent": "^6.1.0"
+  }
 }
