@@ -1,0 +1,61 @@
+{
+  "name": "@papercups/storytime",
+  "version": "1.0.0",
+  "description": "Tracking and recording user sessions",
+  "repository": "https://github.com/papercups/storytime",
+  "author": "reichertjalex@gmail.com",
+  "license": "MIT",
+  "scripts": {
+    "start": "parcel watch src/index.ts --out-file dist/global.js",
+    "build-global": "parcel build src/index.ts --out-file dist/global.js --no-source-maps",
+    "build": "rollup -c",
+    "clean": "rm -rf dist",
+    "prepare": "npm run build && npm run build-global"
+  },
+  "main": "dist/index.js",
+  "module": "dist/index.es.js",
+  "jsnext:main": "dist/index.es.js",
+  "unpkg": "dist/index.js",
+  "engines": {
+    "node": ">=8",
+    "npm": ">=5"
+  },
+  "files": [
+    "dist/*"
+  ],
+  "devDependencies": {
+    "@babel/core": "^7.0.0",
+    "@babel/preset-env": "^7.0.0",
+    "@rollup/plugin-node-resolve": "^8.1.0",
+    "@rollup/plugin-typescript": "^6.0.0",
+    "@typescript-eslint/eslint-plugin": "^3.5.0",
+    "@typescript-eslint/parser": "^3.5.0",
+    "babel-eslint": "^10.1.0",
+    "babel-jest": "^26.1.0",
+    "eslint": "^7.3.1",
+    "eslint-plugin-prettier": "^3.1.4",
+    "husky": "^4.2.5",
+    "jest": "^26.1.0",
+    "jsdom": "16.2.2",
+    "jsdom-global": "3.0.2",
+    "lint-staged": "^10.2.11",
+    "localStorage": "1.0.4",
+    "parcel": "^1.12.4",
+    "prettier": "^2.0.5",
+    "rollup": "^2.18.2",
+    "sinon": "9.0.2",
+    "typescript": "^3.9.6"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.{ts,js,json}": "prettier --write",
+    "*.ts": [
+      "eslint -c .eslintrc.ts.js --fix",
+      "tsc"
+    ]
+  }
+}
