@@ -1,6 +1,6 @@
 {
   "name": "@papercups-io/storytime",
-  "version": "1.0.1-beta.1",
+  "version": "1.0.1-beta.2",
   "description": "Tracking and recording user sessions",
   "repository": {
     "type": "git",
@@ -15,7 +15,7 @@
     "build:types": "tsc --declaration true --emitDeclarationOnly true --declarationDir dist",
     "build": "rollup -c",
     "clean": "rm -rf dist",
-    "prepare": "npm run build && npm run build:global"
+    "prepare": "npm run build && npm run build:global && npm run build:types"
   },
   "main": "dist/index.js",
   "module": "dist/index.es.js",
