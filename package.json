@@ -1,16 +1,21 @@
 {
-  "name": "@papercups/storytime",
+  "name": "@papercups-io/storytime",
   "version": "1.0.0",
   "description": "Tracking and recording user sessions",
-  "repository": "https://github.com/papercups/storytime",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/papercups-io/storytime.git"
+  },
   "author": "reichertjalex@gmail.com",
   "license": "MIT",
   "scripts": {
     "start": "parcel watch src/index.ts --out-file dist/global.js",
-    "build-global": "parcel build src/index.ts --out-file dist/global.js --no-source-maps",
+    "tsc": "tsc",
+    "build:global": "parcel build src/index.ts --out-file dist/global.js --no-source-maps",
+    "build:types": "tsc --declaration true --emitDeclarationOnly true --declarationDir dist",
     "build": "rollup -c",
     "clean": "rm -rf dist",
-    "prepare": "npm run build && npm run build-global"
+    "prepare": "npm run build && npm run build:global"
   },
   "main": "dist/index.js",
   "module": "dist/index.es.js",
@@ -57,5 +62,10 @@
       "eslint -c .eslintrc.ts.js --fix",
       "tsc"
     ]
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/papercups-io/storytime/issues"
+  },
+  "homepage": "https://github.com/papercups-io/storytime#readme",
+  "dependencies": {}
 }
