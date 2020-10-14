@@ -14,7 +14,7 @@ const BLOCKLIST: Array<string> = [];
 
 const createBrowserSession = async (accountId: string) => {
   return request
-    .post(`/api/browser_sessions`)
+    .post(`http://localhost:4000/api/browser_sessions`) // FIXME
     .send({
       browser_session: {
         account_id: accountId,
