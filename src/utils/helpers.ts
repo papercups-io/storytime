@@ -10,6 +10,7 @@ export const document = win.document;
 export const windowOpera = (win as any).opera;
 export const screen = win.screen;
 export const userAgent = navigator.userAgent;
+export const intl = win.Intl;
 
 export const nativeBind = FuncProto.bind;
 export const nativeForEach = ArrayProto.forEach;

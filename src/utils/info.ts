@@ -3,6 +3,7 @@ import {
   navigator,
   userAgent,
   windowOpera,
+  intl,
   each,
   extend,
   includes,
@@ -210,32 +211,40 @@ const info = {
     return '';
   },
 
+  timezone: function (intl: any) {
+    try {
+      return intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch (e) {
+      return null;
+    }
+  },
+
   properties: function () {
     return extend(
       stripEmptyProperties({
-        $os: info.os(),
-        $browser: info.browser(userAgent, navigator.vendor, windowOpera),
-        $referrer: document.referrer,
-        $referring_domain: info.referringDomain(document.referrer),
-        $device: info.device(userAgent),
+        os: info.os(),
+        browser: info.browser(userAgent, navigator.vendor, windowOpera),
+        referrer: document.referrer,
+        referring_domain: info.referringDomain(document.referrer),
+        device: info.device(userAgent),
+        time_zone: info.timezone(intl),
       }),
       {
-        $current_url: win.location.href,
-        $host: win.location.host,
-        $pathname: win.location.pathname,
-        $browser_version: info.browserVersion(
+        current_url: win.location.href,
+        host: win.location.host,
+        pathname: win.location.pathname,
+        browser_version: info.browserVersion(
           userAgent,
           navigator.vendor,
           windowOpera
         ),
-        $screen_height: screen.height,
-        $screen_width: screen.width,
-        $lib: 'web',
-        // $lib_version: Config.LIB_VERSION,
-        $insert_id:
+        screen_height: screen.height,
+        screen_width: screen.width,
+        lib: 'web',
+        insert_id:
           Math.random().toString(36).substring(2, 10) +
           Math.random().toString(36).substring(2, 10),
-        $time: timestamp() / 1000, // epoch time in seconds
+        time: timestamp() / 1000, // epoch time in seconds
       }
     );
   },
