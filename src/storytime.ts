@@ -35,6 +35,7 @@ class Storytime {
   publicKey?: string;
   blocklist: Array<string>;
   host: string;
+  version: string;
 
   socket: Socket;
   channel!: Channel;
@@ -46,6 +47,7 @@ class Storytime {
     this.publicKey = config.publicKey;
     this.blocklist = config.blocklist || BLOCKLIST;
     this.host = config.host || DEFAULT_HOST;
+    this.version = '1.0.0-beta.6';
 
     this.socket = new Socket(getWebsocketUrl(this.host));
   }
@@ -76,6 +78,8 @@ class Storytime {
       .join()
       .receive('ok', () => this.onConnectionSuccess(sessionId))
       .receive('error', (err) => this.onConnectionError(err));
+
+    return this;
   }
 
   async finish() {
