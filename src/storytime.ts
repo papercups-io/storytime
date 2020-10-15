@@ -3,6 +3,8 @@ import {record} from 'rrweb';
 import * as request from 'superagent';
 import {eventWithTime} from 'rrweb/typings/types';
 import {win} from './utils/helpers';
+import {fetch} from './utils/http';
+import {getUserInfo} from './utils/info';
 
 const DEFAULT_HOST = 'https://app.papercups.io';
 const REPLAY_EVENT_EMITTED = 'replay:event:emitted';
@@ -94,6 +96,7 @@ class Storytime {
   }
 
   createBrowserSession = async (accountId: string) => {
+    const metadata = getUserInfo();
     // TODO: don't use superagent!
     return request
       .post(`${this.host}/api/browser_sessions`)
@@ -101,16 +104,18 @@ class Storytime {
         browser_session: {
           account_id: accountId,
           started_at: new Date(),
+          metadata,
         },
       })
       .then((res) => res.body.data);
   };
 
   finishBrowserSession = async (sessionId: string) => {
-    // TODO: don't use superagent here!
-    return request
-      .post(`${this.host}/api/browser_sessions/${sessionId}/finish`)
-      .then((res) => res.body.data);
+    fetch(
+      `${this.host}/api/browser_sessions/${sessionId}/finish`,
+      {},
+      {transport: 'sendbeacon'}
+    );
   };
 
   captureReplayEvent(event: eventWithTime) {
