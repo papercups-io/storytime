@@ -1,6 +1,7 @@
 import {Socket, Channel} from 'phoenix';
 import {record} from 'rrweb';
 import * as request from 'superagent';
+import {eventWithTime} from 'rrweb/typings/types';
 import {win} from './utils/helpers';
 
 const DEFAULT_HOST = 'https://app.papercups.io';
@@ -37,6 +38,7 @@ class Storytime {
 
   socket: Socket;
   channel!: Channel;
+  sessionId?: string;
 
   constructor(config: Config) {
     this.accountId = config.accountId;
@@ -65,6 +67,7 @@ class Storytime {
     const sessionId = await this.getSessionId();
     const channel = this.getChannelName(sessionId);
 
+    this.sessionId = sessionId;
     this.channel = this.socket.channel(channel, {
       customerId: this.customerId,
     });
@@ -75,7 +78,14 @@ class Storytime {
       .receive('error', (err) => this.onConnectionError(err));
   }
 
+  async finish() {
+    if (this.sessionId) {
+      return this.finishBrowserSession(this.sessionId);
+    }
+  }
+
   createBrowserSession = async (accountId: string) => {
+    // TODO: don't use superagent!
     return request
       .post(`${this.host}/api/browser_sessions`)
       .send({
@@ -90,14 +100,17 @@ class Storytime {
   finishBrowserSession = async (sessionId: string) => {
     // TODO: don't use superagent here!
     return request
-      .put(`${this.host}/api/browser_sessions/${sessionId}`)
-      .send({
-        browser_session: {
-          finished_at: new Date(),
-        },
-      })
+      .post(`${this.host}/api/browser_sessions/${sessionId}/finish`)
       .then((res) => res.body.data);
   };
+
+  captureReplayEvent(event: eventWithTime) {
+    // TODO: allow capturing event through other means?
+    this.channel.push(REPLAY_EVENT_EMITTED, {
+      event,
+      customer_id: this.customerId,
+    });
+  }
 
   onConnectionSuccess(sessionId: string) {
     console.log('Start recording!', this);
@@ -108,16 +121,14 @@ class Storytime {
 
         // TODO: just emit everything until bug is fixed?
         if (this.shouldEmitEvent(pathName)) {
-          this.channel.push(REPLAY_EVENT_EMITTED, {
-            event,
-            customer_id: this.customerId,
-          });
+          this.captureReplayEvent(event);
         }
       },
     });
 
     win.addEventListener('beforeunload', () => {
       // TODO: verify that this actually works
+      // TODO: also add ability to trigger this manually (i.e. stop a recording)
       this.finishBrowserSession(sessionId);
     });
   }
