@@ -49,7 +49,7 @@ class Storytime {
     this.publicKey = config.publicKey;
     this.blocklist = config.blocklist || BLOCKLIST;
     this.host = config.host || DEFAULT_HOST;
-    this.version = '1.0.1-beta.9';
+    this.version = '1.0.1-beta.10';
 
     this.socket = new Socket(getWebsocketUrl(this.host));
   }
@@ -103,6 +103,7 @@ class Storytime {
       .send({
         browser_session: {
           account_id: accountId,
+          customer_id: this.customerId,
           started_at: new Date(),
           metadata,
         },
@@ -111,6 +112,7 @@ class Storytime {
   };
 
   finishBrowserSession = async (sessionId: string) => {
+    // TODO: include metadata at finish?
     fetch(
       `${this.host}/api/browser_sessions/${sessionId}/finish`,
       {},
