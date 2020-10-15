@@ -47,7 +47,7 @@ class Storytime {
     this.publicKey = config.publicKey;
     this.blocklist = config.blocklist || BLOCKLIST;
     this.host = config.host || DEFAULT_HOST;
-    this.version = '1.0.0-beta.6';
+    this.version = '1.0.1-beta.7';
 
     this.socket = new Socket(getWebsocketUrl(this.host));
   }
@@ -84,8 +84,13 @@ class Storytime {
 
   async finish() {
     if (this.sessionId) {
-      return this.finishBrowserSession(this.sessionId);
+      const result = await this.finishBrowserSession(this.sessionId);
+      console.log('Stopped recording!', this);
+
+      return result;
     }
+
+    return null;
   }
 
   createBrowserSession = async (accountId: string) => {
