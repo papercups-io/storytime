@@ -3,34 +3,29 @@ import {record} from 'rrweb';
 import * as request from 'superagent';
 import {win} from './utils/helpers';
 
-const SOCKET_URL =
-  win.location.hostname === 'localhost'
-    ? 'ws://localhost:4000/socket'
-    : '/socket';
+const DEFAULT_HOST = 'https://app.papercups.io';
+const REPLAY_EVENT_EMITTED = 'replay:event:emitted';
 
 // TODO: figure out a better way to prevent recording on certain pages
 // const blocklist: Array<string> = ['/player', '/sessions'];
 const BLOCKLIST: Array<string> = [];
 
-const createBrowserSession = async (accountId: string) => {
-  return request
-    .post(`http://localhost:4000/api/browser_sessions`) // FIXME
-    .send({
-      browser_session: {
-        account_id: accountId,
-        started_at: new Date(),
-      },
-    })
-    .then((res) => res.body.data);
-};
+export const getWebsocketUrl = (baseUrl = DEFAULT_HOST) => {
+  // TODO: handle this parsing better
+  const [protocol, host] = baseUrl.split('://');
+  const isHttps = protocol === 'https';
 
-const REPLAY_EVENT_EMITTED = 'replay:event:emitted';
+  // TODO: not sure how websockets work with subdomains
+  return `${isHttps ? 'wss' : 'ws'}://${host}/socket`;
+};
 
 type Config = {
   accountId: string;
   customerId?: string;
-  publicKey?: string;
   blocklist?: Array<string>;
+  host?: string;
+  // Currently unused
+  publicKey?: string;
 };
 
 class Storytime {
@@ -38,6 +33,7 @@ class Storytime {
   customerId?: string;
   publicKey?: string;
   blocklist: Array<string>;
+  host: string;
 
   socket: Socket;
   channel!: Channel;
@@ -47,8 +43,9 @@ class Storytime {
     this.customerId = config.customerId;
     this.publicKey = config.publicKey;
     this.blocklist = config.blocklist || BLOCKLIST;
+    this.host = config.host || DEFAULT_HOST;
 
-    this.socket = new Socket(SOCKET_URL);
+    this.socket = new Socket(getWebsocketUrl(this.host));
   }
 
   static init(config: Config) {
@@ -74,11 +71,35 @@ class Storytime {
 
     this.channel
       .join()
-      .receive('ok', () => this.onConnectionSuccess())
+      .receive('ok', () => this.onConnectionSuccess(sessionId))
       .receive('error', (err) => this.onConnectionError(err));
   }
 
-  onConnectionSuccess() {
+  createBrowserSession = async (accountId: string) => {
+    return request
+      .post(`${this.host}/api/browser_sessions`)
+      .send({
+        browser_session: {
+          account_id: accountId,
+          started_at: new Date(),
+        },
+      })
+      .then((res) => res.body.data);
+  };
+
+  finishBrowserSession = async (sessionId: string) => {
+    // TODO: don't use superagent here!
+    return request
+      .put(`${this.host}/api/browser_sessions/${sessionId}`)
+      .send({
+        browser_session: {
+          finished_at: new Date(),
+        },
+      })
+      .then((res) => res.body.data);
+  };
+
+  onConnectionSuccess(sessionId: string) {
     console.log('Start recording!', this);
 
     record({
@@ -96,7 +117,8 @@ class Storytime {
     });
 
     win.addEventListener('beforeunload', () => {
-      // TODO: end session
+      // TODO: verify that this actually works
+      this.finishBrowserSession(sessionId);
     });
   }
 
@@ -110,9 +132,9 @@ class Storytime {
   }
 
   async getSessionId(): Promise<string> {
-    // TODO: check cache first
+    // TODO: check cache first?
 
-    const {id: sessionId} = await createBrowserSession(this.accountId);
+    const {id: sessionId} = await this.createBrowserSession(this.accountId);
 
     return sessionId;
   }
