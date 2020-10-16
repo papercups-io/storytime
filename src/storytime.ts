@@ -51,7 +51,7 @@ class Storytime {
     this.publicKey = config.publicKey;
     this.blocklist = []; //  config.blocklist || BLOCKLIST;
     this.host = config.host || DEFAULT_HOST;
-    this.version = '1.0.1';
+    this.version = '1.0.2-beta.0';
 
     this.socket = new Socket(getWebsocketUrl(this.host));
   }
