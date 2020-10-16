@@ -51,7 +51,7 @@ class Storytime {
     this.publicKey = config.publicKey;
     this.blocklist = []; //  config.blocklist || BLOCKLIST;
     this.host = config.host || DEFAULT_HOST;
-    this.version = '1.0.2-beta.0';
+    this.version = '1.0.2-beta.1';
 
     this.socket = new Socket(getWebsocketUrl(this.host));
   }
@@ -113,10 +113,18 @@ class Storytime {
       .then((res) => res.body.data);
   };
 
-  finishBrowserSession = async (sessionId: string) => {
+  finishBrowserSession = (sessionId: string) => {
     // TODO: include metadata at finish?
     fetch(
       `${this.host}/api/browser_sessions/${sessionId}/finish`,
+      {},
+      {transport: 'sendbeacon'}
+    );
+  };
+
+  restartBrowserSession = (sessionId: string) => {
+    fetch(
+      `${this.host}/api/browser_sessions/${sessionId}/restart`,
       {},
       {transport: 'sendbeacon'}
     );
@@ -170,6 +178,8 @@ class Storytime {
     const existingId = storage.get(SESSION_CACHE_KEY);
 
     if (existingId && existingId.length) {
+      this.restartBrowserSession(existingId);
+
       return existingId;
     }
 
