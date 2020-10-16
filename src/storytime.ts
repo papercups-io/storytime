@@ -12,8 +12,7 @@ const REPLAY_EVENT_EMITTED = 'replay:event:emitted';
 const SESSION_CACHE_KEY = 'papercups:storytime:session';
 
 // TODO: figure out a better way to prevent recording on certain pages
-// const blocklist: Array<string> = ['/player', '/sessions'];
-const BLOCKLIST: Array<string> = [];
+// const BLOCKLIST: Array<string> = ['/player', '/sessions'];
 
 export const getWebsocketUrl = (baseUrl = DEFAULT_HOST) => {
   // TODO: handle this parsing better
@@ -51,16 +50,16 @@ class Storytime {
     this.publicKey = config.publicKey;
     this.blocklist = []; //  config.blocklist || BLOCKLIST;
     this.host = config.host || DEFAULT_HOST;
-    this.version = '1.0.2-beta.1';
+    this.version = '1.0.2-beta.2';
 
     this.socket = new Socket(getWebsocketUrl(this.host));
   }
 
-  static init(config: Config) {
+  static init(config: Config): Promise<Storytime> {
     return new Storytime(config).listen();
   }
 
-  async listen() {
+  async listen(): Promise<Storytime> {
     if (!this.socket.isConnected()) {
       this.socket.connect();
     }
@@ -86,15 +85,11 @@ class Storytime {
     return this;
   }
 
-  async finish() {
+  finish(): void {
     if (this.sessionId) {
-      const result = await this.finishBrowserSession(this.sessionId);
+      this.finishBrowserSession(this.sessionId);
       console.log('Stopped recording!', this);
-
-      return result;
     }
-
-    return null;
   }
 
   createBrowserSession = async (accountId: string) => {
@@ -113,18 +108,17 @@ class Storytime {
       .then((res) => res.body.data);
   };
 
-  finishBrowserSession = (sessionId: string) => {
+  restartBrowserSession = async (sessionId: string) => {
+    // TODO: don't use superagent!
+    return request
+      .post(`${this.host}/api/browser_sessions/${sessionId}/restart`)
+      .then((res) => res.body.data);
+  };
+
+  finishBrowserSession = (sessionId: string): void => {
     // TODO: include metadata at finish?
     fetch(
       `${this.host}/api/browser_sessions/${sessionId}/finish`,
-      {},
-      {transport: 'sendbeacon'}
-    );
-  };
-
-  restartBrowserSession = (sessionId: string) => {
-    fetch(
-      `${this.host}/api/browser_sessions/${sessionId}/restart`,
       {},
       {transport: 'sendbeacon'}
     );
@@ -178,7 +172,7 @@ class Storytime {
     const existingId = storage.get(SESSION_CACHE_KEY);
 
     if (existingId && existingId.length) {
-      this.restartBrowserSession(existingId);
+      await this.restartBrowserSession(existingId);
 
       return existingId;
     }
