@@ -33,7 +33,7 @@ type Config = {
 
 class Storytime {
   accountId: string;
-  customerId?: string;
+  customerId?: string | null;
   publicKey?: string;
   blocklist: Array<string>;
   host: string;
@@ -45,11 +45,11 @@ class Storytime {
 
   constructor(config: Config) {
     this.accountId = config.accountId;
-    this.customerId = config.customerId;
+    this.customerId = null; // config.customerId;
     this.publicKey = config.publicKey;
-    this.blocklist = config.blocklist || BLOCKLIST;
+    this.blocklist = []; //  config.blocklist || BLOCKLIST;
     this.host = config.host || DEFAULT_HOST;
-    this.version = '1.0.1-beta.10';
+    this.version = '1.0.1';
 
     this.socket = new Socket(getWebsocketUrl(this.host));
   }

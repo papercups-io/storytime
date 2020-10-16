@@ -1,7 +1,7 @@
 {
   "name": "@papercups-io/storytime",
-  "version": "1.0.1-beta.10",
-  "description": "Tracking and recording user sessions",
+  "version": "1.0.1",
+  "description": "Track and record user sessions",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/papercups-io/storytime.git"
