@@ -9,6 +9,7 @@ import {getUserInfo} from './utils/info';
 
 const DEFAULT_HOST = 'https://app.papercups.io';
 const REPLAY_EVENT_EMITTED = 'replay:event:emitted';
+const ADMIN_WATCH_EVENT = 'admin:watching';
 const SESSION_CACHE_KEY = 'papercups:storytime:session';
 
 // TODO: figure out a better way to prevent recording on certain pages
@@ -50,7 +51,7 @@ class Storytime {
     this.publicKey = config.publicKey;
     this.blocklist = []; //  config.blocklist || BLOCKLIST;
     this.host = config.host || DEFAULT_HOST;
-    this.version = '1.0.2-beta.2';
+    this.version = '1.0.2-beta.3';
 
     this.socket = new Socket(getWebsocketUrl(this.host));
   }
@@ -135,7 +136,7 @@ class Storytime {
   onConnectionSuccess(sessionId: string) {
     console.log('Start recording!', this);
 
-    record({
+    const stop = record({
       emit: (event) => {
         const pathName = win.location.pathname;
 
@@ -144,6 +145,14 @@ class Storytime {
           this.captureReplayEvent(event);
         }
       },
+    });
+
+    this.channel.on(ADMIN_WATCH_EVENT, () => {
+      if (stop && typeof stop === 'function') {
+        stop();
+        console.log('Detected admin! Resetting recording...');
+        this.onConnectionSuccess(sessionId);
+      }
     });
 
     win.addEventListener('beforeunload', () => {

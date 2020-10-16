@@ -22,13 +22,13 @@ export const cookie = {
   },
 
   parse: function (name: string) {
-    let cookie;
+    let result;
     try {
-      cookie = JSONDecode(cookie.get(name)) || {};
+      result = JSONDecode(cookie.get(name)) || {};
     } catch (err) {
       // noop
     }
-    return cookie;
+    return result;
   },
 
   setSeconds: function (
@@ -154,7 +154,7 @@ export const local = {
     return supported;
   },
 
-  error: function (msg) {
+  error: function (msg: any) {
     console.error('localStorage error: ' + msg);
   },
 
@@ -221,7 +221,7 @@ export const session = {
     return supported;
   },
 
-  error: function (msg) {
+  error: function (msg: any) {
     console.error('sessionStorage error: ' + msg);
   },
 
