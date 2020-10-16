@@ -192,3 +192,70 @@ export const local = {
     }
   },
 };
+
+let _isSessionStorageSupported: boolean | null = null;
+
+export const session = {
+  isSupported: function () {
+    if (_isSessionStorageSupported !== null) {
+      return _isSessionStorageSupported;
+    }
+
+    let supported = true;
+    try {
+      let key = '__lssupport__',
+        val = 'xyz';
+      session.set(key, val);
+      if (session.get(key) !== val) {
+        supported = false;
+      }
+      session.remove(key);
+    } catch (err) {
+      supported = false;
+    }
+    if (!supported) {
+      console.error('sessionStorage unsupported; falling back to cookie store');
+    }
+
+    _isSessionStorageSupported = supported;
+    return supported;
+  },
+
+  error: function (msg) {
+    console.error('sessionStorage error: ' + msg);
+  },
+
+  get: function (name: string) {
+    try {
+      return window.sessionStorage.getItem(name);
+    } catch (err) {
+      session.error(err);
+    }
+    return null;
+  },
+
+  parse: function (name: string) {
+    try {
+      return JSONDecode(session.get(name)) || {};
+    } catch (err) {
+      // noop
+    }
+    return null;
+  },
+
+  set: function (name: string, value: string) {
+    try {
+      window.sessionStorage.setItem(name, value);
+    } catch (err) {
+      session.error(err);
+    }
+  },
+
+  remove: function (name: string) {
+    try {
+      window.sessionStorage.removeItem(name);
+    } catch (err) {
+      session.error(err);
+    }
+  },
+};

@@ -4,10 +4,12 @@ import * as request from 'superagent';
 import {eventWithTime} from 'rrweb/typings/types';
 import {win} from './utils/helpers';
 import {fetch} from './utils/http';
+import {session as storage} from './utils/storage';
 import {getUserInfo} from './utils/info';
 
 const DEFAULT_HOST = 'https://app.papercups.io';
 const REPLAY_EVENT_EMITTED = 'replay:event:emitted';
+const SESSION_CACHE_KEY = 'papercups:storytime:session';
 
 // TODO: figure out a better way to prevent recording on certain pages
 // const blocklist: Array<string> = ['/player', '/sessions'];
@@ -159,9 +161,20 @@ class Storytime {
   }
 
   async getSessionId(): Promise<string> {
-    // TODO: check cache first?
+    if (!storage.isSupported()) {
+      const {id: sessionId} = await this.createBrowserSession(this.accountId);
+
+      return sessionId;
+    }
+
+    const existingId = storage.get(SESSION_CACHE_KEY);
+
+    if (existingId && existingId.length) {
+      return existingId;
+    }
 
     const {id: sessionId} = await this.createBrowserSession(this.accountId);
+    storage.set(SESSION_CACHE_KEY, sessionId);
 
     return sessionId;
   }
