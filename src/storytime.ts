@@ -4,13 +4,14 @@ import * as request from 'superagent';
 import {eventWithTime} from 'rrweb/typings/types';
 import {win} from './utils/helpers';
 import {fetch} from './utils/http';
-import {session as storage} from './utils/storage';
+import * as storage from './utils/storage';
 import {getUserInfo} from './utils/info';
 
 const DEFAULT_HOST = 'https://app.papercups.io';
 const REPLAY_EVENT_EMITTED = 'replay:event:emitted';
 const ADMIN_WATCH_EVENT = 'admin:watching';
 const SESSION_CACHE_KEY = 'papercups:storytime:session';
+const CUSTOMER_CACHE_KEY = '__PAPERCUPS____CUSTOMER_ID__';
 
 // TODO: figure out a better way to prevent recording on certain pages
 // const BLOCKLIST: Array<string> = ['/player', '/sessions'];
@@ -47,7 +48,7 @@ class Storytime {
 
   constructor(config: Config) {
     this.accountId = config.accountId;
-    this.customerId = null; // config.customerId;
+    this.customerId = storage.local.parse(CUSTOMER_CACHE_KEY); // config.customerId;
     this.publicKey = config.publicKey;
     this.blocklist = []; //  config.blocklist || BLOCKLIST;
     this.host = config.host || DEFAULT_HOST;
@@ -95,6 +96,7 @@ class Storytime {
 
   createBrowserSession = async (accountId: string) => {
     const metadata = getUserInfo();
+
     // TODO: don't use superagent!
     return request
       .post(`${this.host}/api/browser_sessions`)
@@ -109,11 +111,14 @@ class Storytime {
       .then((res) => res.body.data);
   };
 
-  restartBrowserSession = async (sessionId: string) => {
-    // TODO: don't use superagent!
-    return request
-      .post(`${this.host}/api/browser_sessions/${sessionId}/restart`)
-      .then((res) => res.body.data);
+  restartBrowserSession = (sessionId: string) => {
+    // TODO: just handle this on sthe server if the session received new
+    // events after being marked "finished" (i.e. `finished_at` is set)
+    fetch(
+      `${this.host}/api/browser_sessions/${sessionId}/restart`,
+      {},
+      {transport: 'sendbeacon'}
+    );
   };
 
   finishBrowserSession = (sessionId: string): void => {
@@ -172,22 +177,23 @@ class Storytime {
   }
 
   async getSessionId(): Promise<string> {
-    if (!storage.isSupported()) {
+    if (!storage.session.isSupported()) {
       const {id: sessionId} = await this.createBrowserSession(this.accountId);
 
       return sessionId;
     }
 
-    const existingId = storage.get(SESSION_CACHE_KEY);
+    const existingId = storage.session.get(SESSION_CACHE_KEY);
 
     if (existingId && existingId.length) {
-      await this.restartBrowserSession(existingId);
+      // TODO: instead of restarting here, verify that this is a valid session ID
+      this.restartBrowserSession(existingId);
 
       return existingId;
     }
 
     const {id: sessionId} = await this.createBrowserSession(this.accountId);
-    storage.set(SESSION_CACHE_KEY, sessionId);
+    storage.session.set(SESSION_CACHE_KEY, sessionId);
 
     return sessionId;
   }

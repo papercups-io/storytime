@@ -169,7 +169,7 @@ export const local = {
 
   parse: function (name: string) {
     try {
-      return JSONDecode(local.get(name)) || {};
+      return JSONDecode(local.get(name)) || null;
     } catch (err) {
       // noop
     }
@@ -236,7 +236,7 @@ export const session = {
 
   parse: function (name: string) {
     try {
-      return JSONDecode(session.get(name)) || {};
+      return JSONDecode(session.get(name)) || null;
     } catch (err) {
       // noop
     }
