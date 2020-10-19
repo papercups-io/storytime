@@ -13,9 +13,6 @@ const ADMIN_WATCH_EVENT = 'admin:watching';
 const SESSION_CACHE_KEY = 'papercups:storytime:session';
 const CUSTOMER_CACHE_KEY = '__PAPERCUPS____CUSTOMER_ID__';
 
-// TODO: figure out a better way to prevent recording on certain pages
-// const BLOCKLIST: Array<string> = ['/player', '/sessions'];
-
 export const getWebsocketUrl = (baseUrl = DEFAULT_HOST) => {
   // TODO: handle this parsing better
   const [protocol, host] = baseUrl.split('://');
@@ -51,7 +48,7 @@ class Storytime {
     this.accountId = config.accountId;
     this.customerId = storage.local.parse(CUSTOMER_CACHE_KEY); // config.customerId;
     this.publicKey = config.publicKey;
-    this.blocklist = []; //  config.blocklist || BLOCKLIST;
+    this.blocklist = config.blocklist || [];
     this.host = config.host || DEFAULT_HOST;
     this.version = '1.0.2';
 
@@ -200,6 +197,7 @@ class Storytime {
   }
 
   shouldEmitEvent(pathName: string) {
+    // TODO: use regex here?
     return this.blocklist.every((p) => pathName.indexOf(p) === -1);
   }
 
