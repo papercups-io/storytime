@@ -45,6 +45,7 @@ class Storytime {
   socket: Socket;
   channel!: Channel;
   sessionId?: string;
+  stop?: () => void;
 
   constructor(config: Config) {
     this.accountId = config.accountId;
@@ -89,8 +90,23 @@ class Storytime {
 
   finish(): void {
     if (this.sessionId) {
+      console.debug('[Storytime] Marking session over...');
       this.finishBrowserSession(this.sessionId);
-      console.log('Stopped recording!', this);
+    }
+
+    if (this.stop) {
+      console.debug('[Storytime] Stopping...');
+      this.stop();
+    }
+
+    if (this.socket && this.socket.disconnect) {
+      console.debug('[Storytime] Disconnecting socket...');
+      this.socket.disconnect();
+    }
+
+    if (this.channel && this.channel.leave) {
+      console.debug('[Storytime] Leaving channel...');
+      this.channel.leave();
     }
   }
 
@@ -108,6 +124,17 @@ class Storytime {
           metadata,
         },
       })
+      .then((res) => res.body.data);
+  };
+
+  isValidSessionId = async (sessionId?: string | null) => {
+    if (!sessionId || !sessionId.length) {
+      return false;
+    }
+
+    // TODO: don't use superagent!
+    return request
+      .get(`${this.host}/api/browser_sessions/${sessionId}/exists`)
       .then((res) => res.body.data);
   };
 
@@ -141,7 +168,7 @@ class Storytime {
   onConnectionSuccess(sessionId: string) {
     console.log('Start recording!', this);
 
-    const stop = record({
+    this.stop = record({
       emit: (event) => {
         const pathName = win.location.pathname;
 
@@ -153,8 +180,8 @@ class Storytime {
     });
 
     this.channel.on(ADMIN_WATCH_EVENT, () => {
-      if (stop && typeof stop === 'function') {
-        stop();
+      if (this.stop && typeof this.stop === 'function') {
+        this.stop();
         console.log('Detected admin! Resetting recording...');
         this.onConnectionSuccess(sessionId);
       }
@@ -184,8 +211,9 @@ class Storytime {
     }
 
     const existingId = storage.session.get(SESSION_CACHE_KEY);
+    const hasValidCachedId = await this.isValidSessionId(existingId);
 
-    if (existingId && existingId.length) {
+    if (existingId && hasValidCachedId) {
       // TODO: instead of restarting here, verify that this is a valid session ID
       this.restartBrowserSession(existingId);
 
