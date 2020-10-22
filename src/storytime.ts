@@ -124,7 +124,8 @@ class Storytime {
 
     // TODO: test if this is actually necessary
     if (win.Storytime.initialized) {
-      throw new Error('Storytime has already been initialized!');
+      console.warn('Storytime has already been initialized!');
+      console.warn('This may result in some unexpected issues.');
     }
 
     const instance = new Storytime(config);
