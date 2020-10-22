@@ -6,6 +6,7 @@ import {win} from './utils/helpers';
 import {fetch} from './utils/http';
 import * as storage from './utils/storage';
 import {getUserInfo} from './utils/info';
+import Logger from './utils/logger';
 
 declare global {
   interface Window {
@@ -88,6 +89,7 @@ type Config = {
   blocklist?: Array<string>;
   baseUrl?: string;
   customer?: CustomerMetadata;
+  debug?: boolean;
   // Currently unused
   publicKey?: string;
 };
@@ -99,6 +101,7 @@ class Storytime {
   publicKey?: string;
   blocklist: Array<string>;
   baseUrl: string;
+  logger: Logger;
   version: string;
 
   socket: Socket;
@@ -114,6 +117,7 @@ class Storytime {
     this.publicKey = config.publicKey;
     this.blocklist = config.blocklist || [];
     this.baseUrl = config.baseUrl || DEFAULT_BASE_URL;
+    this.logger = new Logger(!!config.debug);
     this.version = '1.0.4';
 
     this.socket = new Socket(getWebsocketUrl(this.baseUrl));
@@ -143,7 +147,7 @@ class Storytime {
 
       this.socket.onError((err: any) => {
         // TODO: attempt to reconnect?
-        console.error(err);
+        this.logger.error(err);
       });
 
       this.customerId = await this.findOrCreateCustomerId();
@@ -162,7 +166,7 @@ class Storytime {
         )
         .receive('error', (err) => this.onConnectionError(err));
     } catch (err) {
-      console.error('[Storytime] Error on `listen`:', err);
+      this.logger.error('[Storytime] Error on `listen`:', err);
     }
 
     return this;
@@ -170,24 +174,26 @@ class Storytime {
 
   finish(): void {
     if (this.sessionId) {
-      console.debug('[Storytime] Marking session over...');
+      this.logger.debug('[Storytime] Marking session over...');
       this.finishBrowserSession(this.sessionId);
     }
 
     if (this.stop) {
-      console.debug('[Storytime] Stopping...');
+      this.logger.debug('[Storytime] Stopping...');
       this.stop();
     }
 
     if (this.socket && this.socket.disconnect) {
-      console.debug('[Storytime] Disconnecting socket...');
+      this.logger.debug('[Storytime] Disconnecting socket...');
       this.socket.disconnect();
     }
 
     if (this.channel && this.channel.leave) {
-      console.debug('[Storytime] Leaving channel...');
+      this.logger.debug('[Storytime] Leaving channel...');
       this.channel.leave();
     }
+
+    win.Storytime = {}; // Reset?
   }
 
   cacheCustomerId = (customerId: string) => {
@@ -216,7 +222,7 @@ class Storytime {
     const existingId = await this.checkForExistingCustomerId();
 
     if (existingId) {
-      console.log('Found existing customer id!', existingId);
+      this.logger.debug('Found existing customer id!', existingId);
       return existingId;
     }
 
@@ -230,7 +236,7 @@ class Storytime {
       metadata,
       baseUrl
     );
-    console.log('Created new customer id!', customerId);
+    this.logger.debug('Created new customer id!', customerId);
     return customerId;
   };
 
@@ -239,7 +245,10 @@ class Storytime {
     const {accountId, baseUrl, customer: metadata} = this;
 
     if (!metadata || !metadata?.external_id) {
-      console.log('No external_id specified - returning cachedId:', cachedId);
+      this.logger.debug(
+        'No external_id specified - returning cachedId:',
+        cachedId
+      );
       return cachedId;
     }
 
@@ -251,17 +260,17 @@ class Storytime {
     );
 
     if (!matchingCustomerId) {
-      console.log('No matching id found, returning null');
+      this.logger.debug('No matching id found, returning null');
       return null;
     } else if (matchingCustomerId === cachedId) {
-      console.log('Matching id matches cachedId!', {
+      this.logger.debug('Matching id matches cachedId!', {
         matchingCustomerId,
         cachedId,
       });
       return cachedId;
     }
 
-    console.log('Matching id found!', matchingCustomerId);
+    this.logger.debug('Matching id found!', matchingCustomerId);
     return matchingCustomerId;
   };
 
@@ -328,7 +337,7 @@ class Storytime {
   }
 
   onConnectionSuccess(sessionId: string) {
-    console.debug('Start recording!', this);
+    this.logger.debug('Start recording!', this);
     win.Storytime.initialized = true;
 
     this.stop = record({
@@ -345,14 +354,13 @@ class Storytime {
     this.channel.on(ADMIN_WATCH_EVENT, () => {
       if (this.stop && typeof this.stop === 'function') {
         this.stop();
-        console.debug('Detected admin! Resetting recording...');
+        this.logger.debug('Detected admin! Resetting recording...');
         this.onConnectionSuccess(sessionId);
       }
     });
 
     win.addEventListener('papercups:customer:set', (e: any) => {
       const customerId = e.detail;
-      console.log('HOLY SHIT!', e, e.detail);
       this.setBrowserSessionCustomer(sessionId, customerId);
     });
 
@@ -365,7 +373,7 @@ class Storytime {
 
   onConnectionError(err: any) {
     // TODO: how should we handle errors?
-    console.error(err);
+    this.logger.error(err);
   }
 
   shouldEmitEvent(pathName: string) {
