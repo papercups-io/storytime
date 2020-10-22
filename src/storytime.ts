@@ -114,7 +114,7 @@ class Storytime {
     this.publicKey = config.publicKey;
     this.blocklist = config.blocklist || [];
     this.baseUrl = config.baseUrl || DEFAULT_BASE_URL;
-    this.version = '1.0.2';
+    this.version = '1.0.4';
 
     this.socket = new Socket(getWebsocketUrl(this.baseUrl));
   }
