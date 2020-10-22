@@ -41,7 +41,7 @@ export function isFunction(f: any) {
 }
 
 export function isString(obj: any) {
-  return toString.call(obj) == '[object String]';
+  return toString.call(obj) === '[object String]';
 }
 
 export function includes(str: any, needle: any) {

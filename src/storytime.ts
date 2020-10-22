@@ -7,13 +7,29 @@ import {fetch} from './utils/http';
 import * as storage from './utils/storage';
 import {getUserInfo} from './utils/info';
 
-const DEFAULT_HOST = 'https://app.papercups.io';
+declare global {
+  interface Window {
+    Storytime: any;
+  }
+}
+
+const DEFAULT_BASE_URL = 'https://app.papercups.io';
 const REPLAY_EVENT_EMITTED = 'replay:event:emitted';
 const ADMIN_WATCH_EVENT = 'admin:watching';
 const SESSION_CACHE_KEY = 'papercups:storytime:session';
 const CUSTOMER_CACHE_KEY = '__PAPERCUPS____CUSTOMER_ID__';
 
-export const getWebsocketUrl = (baseUrl = DEFAULT_HOST) => {
+export type CustomerMetadata = {
+  name?: string;
+  email?: string;
+  external_id?: string;
+  metadata?: {[key: string]: any};
+  // TODO: include browser info
+};
+
+const EMPTY_METADATA: CustomerMetadata = {};
+
+export const getWebsocketUrl = (baseUrl = DEFAULT_BASE_URL) => {
   // TODO: handle this parsing better
   const [protocol, host] = baseUrl.split('://');
   const isHttps = protocol === 'https';
@@ -22,65 +38,131 @@ export const getWebsocketUrl = (baseUrl = DEFAULT_HOST) => {
   return `${isHttps ? 'wss' : 'ws'}://${host}/socket`;
 };
 
+export const createNewCustomer = async (
+  accountId: string,
+  metadata: CustomerMetadata = EMPTY_METADATA,
+  baseUrl = DEFAULT_BASE_URL
+) => {
+  return request
+    .post(`${baseUrl}/api/customers`)
+    .send({
+      customer: {
+        ...metadata,
+        account_id: accountId,
+        // TODO: deprecate?
+        first_seen: new Date(),
+        last_seen: new Date(),
+      },
+    })
+    .then((res) => res.body.data);
+};
+
+export const updateCustomerMetadata = async (
+  customerId: string,
+  metadata: CustomerMetadata = EMPTY_METADATA,
+  baseUrl = DEFAULT_BASE_URL
+) => {
+  return request
+    .put(`${baseUrl}/api/customers/${customerId}/metadata`)
+    .send({
+      metadata,
+    })
+    .then((res) => res.body.data);
+};
+
+// TODO: figure out the best way to use this
+export const findCustomerByExternalId = async (
+  externalId: string,
+  accountId: string,
+  baseUrl = DEFAULT_BASE_URL
+) => {
+  return request
+    .get(`${baseUrl}/api/customers/identify`)
+    .query({external_id: externalId, account_id: accountId})
+    .then((res) => res.body.data);
+};
+
 type Config = {
   accountId: string;
   customerId?: string;
   blocklist?: Array<string>;
-  host?: string;
+  baseUrl?: string;
+  customer?: CustomerMetadata;
   // Currently unused
   publicKey?: string;
 };
 
 class Storytime {
   accountId: string;
-  customerId?: string | null;
+  customer: CustomerMetadata;
+  customerId: string | null;
   publicKey?: string;
   blocklist: Array<string>;
-  host: string;
+  baseUrl: string;
   version: string;
 
   socket: Socket;
   channel!: Channel;
-  sessionId?: string;
+  sessionId: string | null;
   stop?: () => void;
 
   constructor(config: Config) {
     this.accountId = config.accountId;
+    this.customer = config.customer || {};
+    this.sessionId = storage.session.get(SESSION_CACHE_KEY);
     this.customerId = storage.local.parse(CUSTOMER_CACHE_KEY); // config.customerId;
     this.publicKey = config.publicKey;
     this.blocklist = config.blocklist || [];
-    this.host = config.host || DEFAULT_HOST;
+    this.baseUrl = config.baseUrl || DEFAULT_BASE_URL;
     this.version = '1.0.2';
 
-    this.socket = new Socket(getWebsocketUrl(this.host));
+    this.socket = new Socket(getWebsocketUrl(this.baseUrl));
   }
 
-  static init(config: Config): Promise<Storytime> {
-    return new Storytime(config).listen();
+  static init(config: Config): Storytime {
+    win.Storytime = win.Storytime || {};
+
+    // TODO: test if this is actually necessary
+    if (win.Storytime.initialized) {
+      throw new Error('Storytime has already been initialized!');
+    }
+
+    const instance = new Storytime(config);
+    win.Storytime = instance;
+    instance.listen();
+
+    return instance;
   }
 
   async listen(): Promise<Storytime> {
-    if (!this.socket.isConnected()) {
-      this.socket.connect();
+    try {
+      if (!this.socket.isConnected()) {
+        this.socket.connect();
+      }
+
+      this.socket.onError((err: any) => {
+        // TODO: attempt to reconnect?
+        console.error(err);
+      });
+
+      this.customerId = await this.findOrCreateCustomerId();
+      this.cacheCustomerId(this.customerId);
+
+      this.sessionId = await this.getSessionId(this.accountId, this.customerId);
+      this.channel = this.socket.channel(this.getChannelName(this.sessionId), {
+        customerId: this.customerId,
+      });
+
+      this.channel
+        .join()
+        .receive(
+          'ok',
+          () => this.sessionId && this.onConnectionSuccess(this.sessionId)
+        )
+        .receive('error', (err) => this.onConnectionError(err));
+    } catch (err) {
+      console.error('[Storytime] Error on `listen`:', err);
     }
-
-    this.socket.onError((err: any) => {
-      // TODO: attempt to reconnect?
-      console.error(err);
-    });
-
-    const sessionId = await this.getSessionId();
-    const channel = this.getChannelName(sessionId);
-
-    this.sessionId = sessionId;
-    this.channel = this.socket.channel(channel, {
-      customerId: this.customerId,
-    });
-
-    this.channel
-      .join()
-      .receive('ok', () => this.onConnectionSuccess(sessionId))
-      .receive('error', (err) => this.onConnectionError(err));
 
     return this;
   }
@@ -107,16 +189,91 @@ class Storytime {
     }
   }
 
-  createBrowserSession = async (accountId: string) => {
+  cacheCustomerId = (customerId: string) => {
+    win.dispatchEvent(
+      new CustomEvent('storytime:customer:set', {detail: customerId})
+    );
+    storage.local.set(CUSTOMER_CACHE_KEY, JSON.stringify(customerId));
+  };
+
+  formatCustomerMetadata = (metadata: any) => {
+    if (!metadata) {
+      return {};
+    }
+
+    return Object.keys(metadata).reduce((acc, key) => {
+      if (key === 'metadata') {
+        return {...acc, [key]: metadata[key]};
+      } else {
+        // Make sure all other passed-in values are strings
+        return {...acc, [key]: String(metadata[key])};
+      }
+    }, {});
+  };
+
+  findOrCreateCustomerId = async (): Promise<string> => {
+    const existingId = await this.checkForExistingCustomerId();
+
+    if (existingId) {
+      console.log('Found existing customer id!', existingId);
+      return existingId;
+    }
+
+    const {accountId, baseUrl, customer} = this;
+    const metadata = this.formatCustomerMetadata({
+      ...getUserInfo(),
+      ...customer,
+    });
+    const {id: customerId} = await createNewCustomer(
+      accountId,
+      metadata,
+      baseUrl
+    );
+    console.log('Created new customer id!', customerId);
+    return customerId;
+  };
+
+  checkForExistingCustomerId = async (): Promise<string | null> => {
+    const cachedId = storage.local.parse(CUSTOMER_CACHE_KEY);
+    const {accountId, baseUrl, customer: metadata} = this;
+
+    if (!metadata || !metadata?.external_id) {
+      console.log('No external_id specified - returning cachedId:', cachedId);
+      return cachedId;
+    }
+
+    const {external_id: externalId} = metadata;
+    const {customer_id: matchingCustomerId} = await findCustomerByExternalId(
+      externalId,
+      accountId,
+      baseUrl
+    );
+
+    if (!matchingCustomerId) {
+      console.log('No matching id found, returning null');
+      return null;
+    } else if (matchingCustomerId === cachedId) {
+      console.log('Matching id matches cachedId!', {
+        matchingCustomerId,
+        cachedId,
+      });
+      return cachedId;
+    }
+
+    console.log('Matching id found!', matchingCustomerId);
+    return matchingCustomerId;
+  };
+
+  createBrowserSession = async (accountId: string, customerId: string) => {
     const metadata = getUserInfo();
 
     // TODO: don't use superagent!
     return request
-      .post(`${this.host}/api/browser_sessions`)
+      .post(`${this.baseUrl}/api/browser_sessions`)
       .send({
         browser_session: {
           account_id: accountId,
-          customer_id: this.customerId,
+          customer_id: customerId,
           started_at: new Date(),
           metadata,
         },
@@ -131,15 +288,22 @@ class Storytime {
 
     // TODO: don't use superagent!
     return request
-      .get(`${this.host}/api/browser_sessions/${sessionId}/exists`)
+      .get(`${this.baseUrl}/api/browser_sessions/${sessionId}/exists`)
+      .then((res) => res.body.data);
+  };
+
+  setBrowserSessionCustomer = async (sessionId: string, customerId: string) => {
+    return request
+      .post(`${this.baseUrl}/api/browser_sessions/${sessionId}/identify`)
+      .send({customer_id: customerId})
       .then((res) => res.body.data);
   };
 
   restartBrowserSession = (sessionId: string) => {
-    // TODO: just handle this on sthe server if the session received new
+    // TODO: just handle this on the server if the session received new
     // events after being marked "finished" (i.e. `finished_at` is set)
     fetch(
-      `${this.host}/api/browser_sessions/${sessionId}/restart`,
+      `${this.baseUrl}/api/browser_sessions/${sessionId}/restart`,
       {},
       {transport: 'sendbeacon'}
     );
@@ -148,7 +312,7 @@ class Storytime {
   finishBrowserSession = (sessionId: string): void => {
     // TODO: include metadata at finish?
     fetch(
-      `${this.host}/api/browser_sessions/${sessionId}/finish`,
+      `${this.baseUrl}/api/browser_sessions/${sessionId}/finish`,
       {},
       {transport: 'sendbeacon'}
     );
@@ -163,7 +327,8 @@ class Storytime {
   }
 
   onConnectionSuccess(sessionId: string) {
-    console.log('Start recording!', this);
+    console.debug('Start recording!', this);
+    win.Storytime.initialized = true;
 
     this.stop = record({
       emit: (event) => {
@@ -179,9 +344,15 @@ class Storytime {
     this.channel.on(ADMIN_WATCH_EVENT, () => {
       if (this.stop && typeof this.stop === 'function') {
         this.stop();
-        console.log('Detected admin! Resetting recording...');
+        console.debug('Detected admin! Resetting recording...');
         this.onConnectionSuccess(sessionId);
       }
+    });
+
+    win.addEventListener('papercups:customer:set', (e: any) => {
+      const customerId = e.detail;
+      console.log('HOLY SHIT!', e, e.detail);
+      this.setBrowserSessionCustomer(sessionId, customerId);
     });
 
     win.addEventListener('beforeunload', () => {
@@ -201,9 +372,12 @@ class Storytime {
     return this.blocklist.every((p) => pathName.indexOf(p) === -1);
   }
 
-  async getSessionId(): Promise<string> {
+  async getSessionId(accountId: string, customerId: string): Promise<string> {
     if (!storage.session.isSupported()) {
-      const {id: sessionId} = await this.createBrowserSession(this.accountId);
+      const {id: sessionId} = await this.createBrowserSession(
+        accountId,
+        customerId
+      );
 
       return sessionId;
     }
@@ -212,13 +386,16 @@ class Storytime {
     const hasValidCachedId = await this.isValidSessionId(existingId);
 
     if (existingId && hasValidCachedId) {
-      // TODO: instead of restarting here, verify that this is a valid session ID
       this.restartBrowserSession(existingId);
+      await this.setBrowserSessionCustomer(existingId, customerId);
 
       return existingId;
     }
 
-    const {id: sessionId} = await this.createBrowserSession(this.accountId);
+    const {id: sessionId} = await this.createBrowserSession(
+      accountId,
+      customerId
+    );
     storage.session.set(SESSION_CACHE_KEY, sessionId);
 
     return sessionId;
