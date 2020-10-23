@@ -24,8 +24,8 @@ Paste the code below between your `<head>` and `</head>` tags:
 
 ```html
 <!-- 
-  **Note** that if you already have included the `window.Papercups` configuration
-  with the chat widget, you should **NOT** duplicate it here!
+  Note that if you already have included the `window.Papercups` configuration with the chat widget, 
+  you should **NOT** duplicate it here! All the config settings should be the same for now.
 -->
 <script>
   window.Papercups = {
