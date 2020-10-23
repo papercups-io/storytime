@@ -23,6 +23,10 @@ First, sign up at https://app.papercups.io/register to get your account token. Y
 Paste the code below between your `<head>` and `</head>` tags:
 
 ```html
+/* 
+ * Note that if you already have included the `window.Papercups` configuration 
+ * with the chat widget, you should **NOT** duplicate it here!
+ */ 
 <script>
   window.Papercups = {
     config: {
@@ -39,6 +43,19 @@ Paste the code below between your `<head>` and `</head>` tags:
     },
   };
 </script>
+<script
+  type="text/javascript"
+  async
+  defer
+  src="https://app.papercups.io/storytime.js"
+></script>
+```
+
+_**Note** that if you already have included the `window.Papercups` configuration with the [chat widget](https://github.com/papercups-io/chat-widget#using-in-html), you should **NOT** duplicate it here!_
+
+If you **already** have the config set, just include this script below it:
+
+```html
 <script
   type="text/javascript"
   async
