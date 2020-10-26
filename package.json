@@ -1,6 +1,6 @@
 {
   "name": "@papercups-io/storytime",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "description": "Track and record user sessions",
   "repository": {
     "type": "git",
@@ -9,9 +9,9 @@
   "author": "reichertjalex@gmail.com",
   "license": "MIT",
   "scripts": {
-    "start": "parcel watch src/index.ts --out-file dist/global.js",
+    "start": "parcel watch src/global.ts --out-file dist/global.js",
     "tsc": "tsc",
-    "build:global": "parcel build src/index.ts --out-file dist/global.js --no-source-maps",
+    "build:global": "parcel build src/global.ts --out-file dist/global.js --no-source-maps",
     "build:types": "tsc --declaration true --emitDeclarationOnly true --declarationDir dist",
     "build": "rollup -c",
     "clean": "rm -rf dist",

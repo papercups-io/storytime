@@ -9,8 +9,6 @@ import {
   includes,
   timestamp,
   stripEmptyProperties,
-  __NOOP,
-  __NOOPTIONS,
 } from './helpers';
 import {getQueryParam} from './http';
 
@@ -49,7 +47,7 @@ const info = {
 
   searchInfo: function (referrer: any) {
     let search = info.searchEngine(referrer);
-    let param = search != 'yahoo' ? 'q' : 'p';
+    let param = search !== 'yahoo' ? 'q' : 'p';
     let ret: any = {};
 
     if (search !== null) {
@@ -238,8 +236,8 @@ const info = {
           navigator.vendor,
           windowOpera
         ),
-        screen_height: screen.height,
-        screen_width: screen.width,
+        screen_height: win.screen.height,
+        screen_width: win.screen.width,
         lib: 'web',
         insert_id:
           Math.random().toString(36).substring(2, 10) +
