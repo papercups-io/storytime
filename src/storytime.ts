@@ -1,4 +1,4 @@
-import {Socket, Channel} from 'phoenix';
+import {Socket, Channel, Presence} from 'phoenix';
 import {record} from 'rrweb';
 import * as request from 'superagent';
 import {eventWithTime} from 'rrweb/typings/types';
@@ -16,7 +16,6 @@ declare global {
 
 const DEFAULT_BASE_URL = 'https://app.papercups.io';
 const REPLAY_EVENT_EMITTED = 'replay:event:emitted';
-const ADMIN_WATCH_EVENT = 'admin:watching';
 const SESSION_CACHE_KEY = 'papercups:storytime:session';
 const CUSTOMER_CACHE_KEY = '__PAPERCUPS____CUSTOMER_ID__';
 
@@ -94,6 +93,8 @@ type Config = {
   publicKey?: string;
 };
 
+// TODO: experiment with making this NOT a class
+// (so there's a better guarantee that there's always only one instance running?)
 class Storytime {
   accountId: string;
   customer: CustomerMetadata;
@@ -336,9 +337,11 @@ class Storytime {
     });
   }
 
-  onConnectionSuccess(sessionId: string) {
+  startRecordingSession() {
     this.logger.debug('Start recording!', this);
-    win.Storytime.initialized = true;
+    // TODO: before we start recording, should we emit some kind of event
+    // indicating how long it's been since the last replay event? (i.e. so
+    // we can have some sense of how long it's been since the user was active)
 
     this.stop = record({
       emit: (event) => {
@@ -350,12 +353,43 @@ class Storytime {
         }
       },
     });
+  }
 
-    this.channel.on(ADMIN_WATCH_EVENT, () => {
-      if (this.stop && typeof this.stop === 'function') {
-        this.stop();
-        this.logger.debug('Detected admin! Resetting recording...');
-        this.onConnectionSuccess(sessionId);
+  stopRecordingSession() {
+    if (this.stop && typeof this.stop === 'function') {
+      this.logger.debug('Stopped recording!', this);
+
+      this.stop();
+    }
+  }
+
+  onConnectionSuccess(sessionId: string) {
+    win.Storytime.initialized = true;
+
+    const presence = new Presence(this.channel);
+
+    presence.onSync(() => {
+      // Count the number of admin users connected to this session
+      const online = presence
+        .list()
+        .map(({metas = []}) => metas)
+        .reduce((acc, items) => acc.concat(items), [])
+        .filter((info: any) => {
+          if (!info) {
+            return false;
+          }
+
+          const {session_id: sessionId, admin} = info;
+
+          return admin && !!sessionId;
+        });
+
+      // TODO: maybe compare number only vs number previously online?
+      if (online.length > 0) {
+        this.stopRecordingSession();
+        this.startRecordingSession();
+      } else {
+        this.stopRecordingSession();
       }
     });
 
