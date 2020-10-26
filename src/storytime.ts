@@ -119,7 +119,7 @@ class Storytime {
     this.blocklist = config.blocklist || [];
     this.baseUrl = config.baseUrl || DEFAULT_BASE_URL;
     this.logger = new Logger(!!config.debug);
-    this.version = '1.0.4';
+    this.version = '1.0.5';
 
     this.socket = new Socket(getWebsocketUrl(this.baseUrl));
   }
