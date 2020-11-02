@@ -6,6 +6,10 @@
 
 ## Demo
 
+**Screenshot:**
+<img width="1190" alt="Screen Shot 2020-11-02 at 2 35 02 PM" src="https://user-images.githubusercontent.com/5264279/97911075-b3ece700-1d18-11eb-875d-07db7c4f20b7.png">
+
+**GIF:**
 ![demo](https://user-images.githubusercontent.com/5264279/96898977-56c27d00-145e-11eb-907b-ca8db13a0fa0.gif)
 
 ## Install
