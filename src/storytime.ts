@@ -2,10 +2,11 @@ import {Socket, Channel, Presence} from 'phoenix';
 import {record} from 'rrweb';
 import * as request from 'superagent';
 import {eventWithTime} from 'rrweb/typings/types';
-import {win} from './utils/helpers';
+import {win, document} from './utils/helpers';
 import {fetch} from './utils/http';
 import * as storage from './utils/storage';
 import {getUserInfo} from './utils/info';
+import {isWindowHidden, addVisibilityEventListener} from './utils/visibility';
 import Logger from './utils/logger';
 
 declare global {
@@ -15,7 +16,11 @@ declare global {
 }
 
 const DEFAULT_BASE_URL = 'https://app.papercups.io';
+
 const REPLAY_EVENT_EMITTED = 'replay:event:emitted';
+const ACTIVE_EVENT_EMITTED = 'session:active';
+const INACTIVE_EVENT_EMITTED = 'session:inactive';
+
 const SESSION_CACHE_KEY = 'papercups:storytime:session';
 const CUSTOMER_CACHE_KEY = '__PAPERCUPS____CUSTOMER_ID__';
 
@@ -109,6 +114,7 @@ class Storytime {
   channel!: Channel;
   sessionId: string | null;
   stop?: () => void;
+  unsubscribe?: () => void;
 
   constructor(config: Config) {
     this.accountId = config.accountId;
@@ -166,6 +172,11 @@ class Storytime {
           () => this.sessionId && this.onConnectionSuccess(this.sessionId)
         )
         .receive('error', (err) => this.onConnectionError(err));
+
+      this.unsubscribe = addVisibilityEventListener(
+        document,
+        this.handleVisibilityChange
+      );
     } catch (err) {
       this.logger.error('[Storytime] Error on `listen`:', err);
     }
@@ -184,6 +195,11 @@ class Storytime {
       this.stop();
     }
 
+    if (this.unsubscribe) {
+      this.logger.debug('[Storytime] Unsubscribing visibility handler...');
+      this.unsubscribe();
+    }
+
     if (this.socket && this.socket.disconnect) {
       this.logger.debug('[Storytime] Disconnecting socket...');
       this.socket.disconnect();
@@ -196,6 +212,20 @@ class Storytime {
 
     win.Storytime = {}; // Reset?
   }
+
+  handleVisibilityChange = (e?: any) => {
+    const doc = document || (e && e.target);
+
+    if (!this.channel) {
+      return;
+    }
+
+    if (isWindowHidden(doc)) {
+      this.channel.push(INACTIVE_EVENT_EMITTED, {ts: +new Date()});
+    } else {
+      this.channel.push(ACTIVE_EVENT_EMITTED, {ts: +new Date()});
+    }
+  };
 
   cacheCustomerId = (customerId: string) => {
     win.dispatchEvent(
@@ -403,6 +433,8 @@ class Storytime {
       // TODO: also add ability to trigger this manually (i.e. stop a recording)
       this.finishBrowserSession(sessionId);
     });
+
+    this.handleVisibilityChange();
   }
 
   onConnectionError(err: any) {
