@@ -141,7 +141,14 @@ class Storytime {
 
     const instance = new Storytime(config);
     win.Storytime = instance;
-    instance.listen();
+
+    if (instance.publicKey) {
+      instance.listen();
+    } else {
+      console.warn(
+        'Please upgrade your Papercups subscription plan to use Storytime!'
+      );
+    }
 
     return instance;
   }
@@ -163,6 +170,7 @@ class Storytime {
       this.sessionId = await this.getSessionId(this.accountId, this.customerId);
       this.channel = this.socket.channel(this.getChannelName(this.sessionId), {
         customerId: this.customerId,
+        publicKey: this.publicKey,
       });
 
       this.channel
