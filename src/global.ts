@@ -3,7 +3,7 @@ import {Storytime} from './index';
 
 const w = window as any;
 const config = (w.Papercups && w.Papercups.config) || {};
-const {accountId, customer, baseUrl, debug} = config;
+const {accountId, customer, baseUrl, debug, publicKey} = config;
 
 if (!accountId) {
   throw new Error('An account token is required to start Storytime!');
@@ -14,4 +14,5 @@ Storytime.init({
   baseUrl,
   customer,
   debug,
+  publicKey,
 });
