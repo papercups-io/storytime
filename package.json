@@ -48,7 +48,7 @@
     "jsdom-global": "3.0.2",
     "lint-staged": "^10.2.11",
     "localStorage": "1.0.4",
-    "parcel": "^1.12.4",
+    "parcel": "1.12.3",
     "prettier": "^2.0.5",
     "rollup": "^2.18.2",
     "sinon": "9.0.2",
